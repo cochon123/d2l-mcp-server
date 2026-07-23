@@ -1,13 +1,11 @@
-import { getToken } from './auth.js';
+import { getAuthenticatedContext } from './auth.js';
 const D2L_HOST = process.env.D2L_HOST || 'learn.ul.ie';
 const BASE_URL = `https://${D2L_HOST}`;
 const API_VERSION = '1.57';
 export class D2LClient {
     async request(method, path, body) {
-        const token = await getToken();
         const url = `${BASE_URL}${path}`;
         const headers = {
-            'Authorization': `Bearer ${token}`,
             'Content-Type': 'application/json',
         };
         const options = {
@@ -15,15 +13,21 @@ export class D2LClient {
             headers,
         };
         if (body) {
-            options.body = JSON.stringify(body);
+            options.data = body;
         }
-        const response = await fetch(url, options);
-        if (!response.ok) {
-            const errorText = await response.text();
-            throw new Error(`D2L API error ${response.status}: ${errorText}`);
+        const context = await getAuthenticatedContext();
+        try {
+            const response = await context.request.fetch(url, options);
+            if (!response.ok()) {
+                const errorText = await response.text();
+                throw new Error(`D2L API error ${response.status()}: ${errorText}`);
+            }
+            const data = await response.json();
+            return { data, status: response.status() };
         }
-        const data = await response.json();
-        return { data, status: response.status };
+        finally {
+            await context.close();
+        }
     }
     async get(path) {
         const { data } = await this.request('GET', path);
@@ -42,28 +46,32 @@ export class D2LClient {
         return data;
     }
     async postMultipart(path, body, boundary) {
-        const token = await getToken();
         const url = `${BASE_URL}${path}`;
-        const response = await fetch(url, {
-            method: 'POST',
-            headers: {
-                'Authorization': `Bearer ${token}`,
-                'Content-Type': `multipart/mixed; boundary=${boundary}`,
-                'Content-Length': String(body.length),
-            },
-            body: Uint8Array.from(body).buffer,
-        });
-        const responseText = await response.text();
-        if (!response.ok) {
-            throw new Error(`D2L API error ${response.status}: ${responseText}`);
-        }
-        if (!responseText.trim())
-            return null;
+        const context = await getAuthenticatedContext();
         try {
-            return JSON.parse(responseText);
+            const response = await context.request.fetch(url, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': `multipart/mixed; boundary=${boundary}`,
+                    'Content-Length': String(body.length),
+                },
+                data: body,
+            });
+            const responseText = await response.text();
+            if (!response.ok()) {
+                throw new Error(`D2L API error ${response.status()}: ${responseText}`);
+            }
+            if (!responseText.trim())
+                return null;
+            try {
+                return JSON.parse(responseText);
+            }
+            catch {
+                return responseText;
+            }
         }
-        catch {
-            return responseText;
+        finally {
+            await context.close();
         }
     }
     // Dropbox/Assignment endpoints

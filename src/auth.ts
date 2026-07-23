@@ -6,6 +6,12 @@ import { existsSync } from 'fs';
 const SESSION_PATH = join(homedir(), '.d2l-session');
 const D2L_HOST = process.env.D2L_HOST || 'learn.ul.ie';
 const HOME_URL = `https://${D2L_HOST}/d2l/home`;
+const CHROMIUM_EXECUTABLE_PATH = process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH;
+
+const browserOptions = {
+  executablePath: CHROMIUM_EXECUTABLE_PATH,
+  viewport: { width: 1280, height: 720 },
+};
 
 interface TokenCache {
   token: string;
@@ -28,8 +34,8 @@ export async function getToken(): Promise<string> {
 
   // Always try headless first if session exists - only show browser if login needed
   let context = await chromium.launchPersistentContext(SESSION_PATH, {
+    ...browserOptions,
     headless: hasExistingSession,
-    viewport: { width: 1280, height: 720 },
   });
 
   try {
@@ -40,8 +46,8 @@ export async function getToken(): Promise<string> {
       await context.close();
       console.error('Session expired, opening browser for login...');
       context = await chromium.launchPersistentContext(SESSION_PATH, {
+        ...browserOptions,
         headless: false,
-        viewport: { width: 1280, height: 720 },
       });
       const retryResult = await captureToken(context, false);
       tokenCache = {
@@ -102,7 +108,7 @@ async function captureToken(context: BrowserContext, quickCheck: boolean): Promi
   }
 
   // Wait for token capture
-  const maxWait = quickCheck ? 10000 : 120000;
+  const maxWait = quickCheck ? 10000 : 600000;
   const startTime = Date.now();
 
   while (Date.now() - startTime < maxWait) {
@@ -118,6 +124,16 @@ async function captureToken(context: BrowserContext, quickCheck: boolean): Promi
       }
 
       if (capturedToken) {
+        break;
+      }
+
+      // Some Brightspace installations authenticate API requests with the
+      // browser session cookie rather than an Authorization bearer token.
+      const whoAmI = await context.request.get(
+        `${HOME_URL.replace('/d2l/home', '')}/d2l/api/lp/1.43/users/whoami`
+      );
+      if (whoAmI.ok()) {
+        capturedToken = 'cookie-session';
         break;
       }
     } else if (!quickCheck) {
@@ -156,8 +172,8 @@ export async function getAuthenticatedContext(): Promise<BrowserContext> {
   const hasExistingSession = existsSync(SESSION_PATH);
 
   let context = await chromium.launchPersistentContext(SESSION_PATH, {
+    ...browserOptions,
     headless: hasExistingSession,
-    viewport: { width: 1280, height: 720 },
   });
 
   const page = await context.newPage();
@@ -181,8 +197,8 @@ export async function getAuthenticatedContext(): Promise<BrowserContext> {
         await context.close();
         console.error('Session expired, opening browser for login...');
         context = await chromium.launchPersistentContext(SESSION_PATH, {
+          ...browserOptions,
           headless: false,
-          viewport: { width: 1280, height: 720 },
         });
         const newPage = await context.newPage();
         await newPage.goto(HOME_URL, { waitUntil: 'domcontentloaded' });

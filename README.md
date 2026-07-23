@@ -108,6 +108,7 @@ Once connected to Claude, you can ask things like:
 | `D2L_COURSE_ID` | Default course ID (optional) | none |
 | `D2L_UPLOAD_ROOTS` | Directories files may be uploaded from, separated by the platform path delimiter | server working directory |
 | `D2L_MAX_UPLOAD_BYTES` | Maximum allowed upload size in bytes | `104857600` (100 MiB) |
+| `PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH` | Optional system Chrome/Chromium executable used for D2L authentication | Playwright-managed Chromium |
 
 Setting `D2L_COURSE_ID` allows you to omit the course ID from tool calls.
 
