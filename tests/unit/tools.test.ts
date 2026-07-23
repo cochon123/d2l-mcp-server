@@ -10,6 +10,8 @@ vi.mock('../../src/client.js', () => ({
     getDropboxFolders: vi.fn(),
     getDropboxFolder: vi.fn(),
     getDropboxSubmissions: vi.fn(),
+    getMyDropboxSubmissions: vi.fn(),
+    submitDropboxAssignment: vi.fn(),
     getContentToc: vi.fn(),
     getContentTopic: vi.fn(),
     getContentModules: vi.fn(),
@@ -17,7 +19,13 @@ vi.mock('../../src/client.js', () => ({
   },
 }));
 
+vi.mock('../../src/utils/upload.js', () => ({
+  validateUpload: vi.fn(),
+  buildDropboxMultipartBody: vi.fn(),
+}));
+
 import { client } from '../../src/client.js';
+import { buildDropboxMultipartBody, validateUpload } from '../../src/utils/upload.js';
 import { gradeTools } from '../../src/tools/grades.js';
 import { newsTools } from '../../src/tools/news.js';
 import { calendarTools } from '../../src/tools/calendar.js';
@@ -202,6 +210,102 @@ describe('assignmentTools', () => {
       expect(parsed[0]).toHaveProperty('submitted', true);
       expect(parsed[0]).toHaveProperty('grade', 45);
       expect(parsed[0].files).toHaveLength(1);
+    });
+  });
+
+  describe('submit_assignment', () => {
+    const upload = {
+      path: '/safe/project.zip',
+      filename: 'project.zip',
+      size: 1234,
+      contentType: 'application/zip',
+      sha256: 'abc123',
+      data: Buffer.from('zip data'),
+    };
+
+    beforeEach(() => {
+      vi.mocked(validateUpload).mockResolvedValue(upload);
+      vi.mocked(buildDropboxMultipartBody).mockReturnValue({
+        boundary: 'test-boundary',
+        body: Buffer.from('multipart body'),
+      });
+      vi.mocked(client.getDropboxFolder).mockResolvedValue({
+        ...assignmentsFixture[1],
+        DropboxType: 2,
+        GroupTypeId: null,
+        SubmissionType: 0,
+        AllowableFileType: 0,
+      });
+      vi.mocked(client.submitDropboxAssignment).mockResolvedValue(null);
+    });
+
+    it('submits and verifies an explicitly confirmed file', async () => {
+      vi.mocked(client.getMyDropboxSubmissions)
+        .mockResolvedValueOnce([])
+        .mockResolvedValueOnce([{
+          ...submissionsFixture[0],
+          Submissions: [{
+            ...submissionsFixture[0].Submissions[0],
+            Id: 9001,
+            Files: [{
+              FileId: 9002,
+              FileName: 'project.zip',
+              Size: 1234,
+            }],
+          }],
+        }]);
+
+      const result = await assignmentTools.submit_assignment.handler({
+        orgUnitId: 68929,
+        assignmentId: 37839,
+        filePath: '/safe/project.zip',
+        confirmed: true,
+      });
+      const parsed = JSON.parse(result);
+
+      expect(client.submitDropboxAssignment).toHaveBeenCalledWith(
+        68929,
+        37839,
+        Buffer.from('multipart body'),
+        'test-boundary'
+      );
+      expect(parsed).toMatchObject({
+        submitted: true,
+        verified: true,
+        filename: 'project.zip',
+        submissionId: 9001,
+      });
+    });
+
+    it('blocks an accidental resubmission', async () => {
+      vi.mocked(client.getMyDropboxSubmissions).mockResolvedValue(submissionsFixture);
+
+      await expect(assignmentTools.submit_assignment.handler({
+        orgUnitId: 68929,
+        assignmentId: 37839,
+        filePath: '/safe/project.zip',
+        confirmed: true,
+      })).rejects.toThrow('already has 1 submission');
+
+      expect(client.submitDropboxAssignment).not.toHaveBeenCalled();
+    });
+
+    it('rejects a file extension outside the assignment allowlist', async () => {
+      vi.mocked(client.getDropboxFolder).mockResolvedValue({
+        ...assignmentsFixture[0],
+        DropboxType: 2,
+        GroupTypeId: null,
+        SubmissionType: 0,
+      });
+
+      await expect(assignmentTools.submit_assignment.handler({
+        orgUnitId: 68929,
+        assignmentId: 37812,
+        filePath: '/safe/project.zip',
+        confirmed: true,
+      })).rejects.toThrow('is not allowed');
+
+      expect(client.submitDropboxAssignment).not.toHaveBeenCalled();
     });
   });
 });

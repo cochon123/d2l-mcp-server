@@ -126,6 +126,14 @@ export interface RawAssignment {
     }>;
     AllowableFileType: number;
     CustomAllowableFileTypes: string[] | null;
+    Availability?: {
+        StartDate: string | null;
+        EndDate: string | null;
+    } | null;
+    IsHidden?: boolean;
+    DropboxType?: number;
+    GroupTypeId?: number | null;
+    SubmissionType?: number;
 }
 export interface MarshalledAssignment {
     id: number;

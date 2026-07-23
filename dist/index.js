@@ -32,6 +32,17 @@ server.tool('get_assignment_submissions', assignmentTools.get_assignment_submiss
     const result = await assignmentTools.get_assignment_submissions.handler(args);
     return { content: [{ type: 'text', text: result }] };
 });
+server.tool('submit_assignment', assignmentTools.submit_assignment.description, {
+    orgUnitId: assignmentTools.submit_assignment.schema.orgUnitId,
+    assignmentId: assignmentTools.submit_assignment.schema.assignmentId,
+    filePath: assignmentTools.submit_assignment.schema.filePath,
+    comment: assignmentTools.submit_assignment.schema.comment,
+    confirmed: assignmentTools.submit_assignment.schema.confirmed,
+    allowResubmission: assignmentTools.submit_assignment.schema.allowResubmission,
+}, async (args) => {
+    const result = await assignmentTools.submit_assignment.handler(args);
+    return { content: [{ type: 'text', text: result }] };
+});
 // Register content tools
 server.tool('get_course_content', contentTools.get_course_content.description, { orgUnitId: contentTools.get_course_content.schema.orgUnitId }, async (args) => {
     const result = await contentTools.get_course_content.handler(args);

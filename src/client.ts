@@ -63,6 +63,32 @@ export class D2LClient {
     return data;
   }
 
+  private async postMultipart(path: string, body: Buffer, boundary: string): Promise<unknown> {
+    const token = await getToken();
+    const url = `${BASE_URL}${path}`;
+    const response = await fetch(url, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': `multipart/mixed; boundary=${boundary}`,
+        'Content-Length': String(body.length),
+      },
+      body: Uint8Array.from(body).buffer,
+    });
+
+    const responseText = await response.text();
+    if (!response.ok) {
+      throw new Error(`D2L API error ${response.status}: ${responseText}`);
+    }
+
+    if (!responseText.trim()) return null;
+    try {
+      return JSON.parse(responseText);
+    } catch {
+      return responseText;
+    }
+  }
+
   // Dropbox/Assignment endpoints
   async getDropboxFolders(orgUnitId: number) {
     return this.get(`/d2l/api/le/${API_VERSION}/${orgUnitId}/dropbox/folders/`);
@@ -74,6 +100,23 @@ export class D2LClient {
 
   async getDropboxSubmissions(orgUnitId: number, folderId: number) {
     return this.get(`/d2l/api/le/${API_VERSION}/${orgUnitId}/dropbox/folders/${folderId}/submissions/`);
+  }
+
+  async getMyDropboxSubmissions(orgUnitId: number, folderId: number) {
+    return this.get(`/d2l/api/le/${API_VERSION}/${orgUnitId}/dropbox/folders/${folderId}/submissions/mysubmissions/`);
+  }
+
+  async submitDropboxAssignment(
+    orgUnitId: number,
+    folderId: number,
+    body: Buffer,
+    boundary: string
+  ) {
+    return this.postMultipart(
+      `/d2l/api/le/${API_VERSION}/${orgUnitId}/dropbox/folders/${folderId}/submissions/mysubmissions/`,
+      body,
+      boundary
+    );
   }
 
   // Content endpoints

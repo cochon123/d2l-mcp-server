@@ -52,6 +52,30 @@ server.tool(
   }
 );
 
+server.tool(
+  'submit_assignment',
+  assignmentTools.submit_assignment.description,
+  {
+    orgUnitId: assignmentTools.submit_assignment.schema.orgUnitId,
+    assignmentId: assignmentTools.submit_assignment.schema.assignmentId,
+    filePath: assignmentTools.submit_assignment.schema.filePath,
+    comment: assignmentTools.submit_assignment.schema.comment,
+    confirmed: assignmentTools.submit_assignment.schema.confirmed,
+    allowResubmission: assignmentTools.submit_assignment.schema.allowResubmission,
+  },
+  async (args) => {
+    const result = await assignmentTools.submit_assignment.handler(args as {
+      orgUnitId?: number;
+      assignmentId: number;
+      filePath: string;
+      comment?: string;
+      confirmed: true;
+      allowResubmission?: boolean;
+    });
+    return { content: [{ type: 'text', text: result }] };
+  }
+);
+
 // Register content tools
 server.tool(
   'get_course_content',

@@ -4,9 +4,12 @@ export declare class D2LClient {
     post<T>(path: string, body?: unknown): Promise<T>;
     put<T>(path: string, body?: unknown): Promise<T>;
     delete<T>(path: string): Promise<T>;
+    private postMultipart;
     getDropboxFolders(orgUnitId: number): Promise<unknown>;
     getDropboxFolder(orgUnitId: number, folderId: number): Promise<unknown>;
     getDropboxSubmissions(orgUnitId: number, folderId: number): Promise<unknown>;
+    getMyDropboxSubmissions(orgUnitId: number, folderId: number): Promise<unknown>;
+    submitDropboxAssignment(orgUnitId: number, folderId: number, body: Buffer, boundary: string): Promise<unknown>;
     getContentToc(orgUnitId: number): Promise<unknown>;
     getContentTopic(orgUnitId: number, topicId: number): Promise<unknown>;
     getContentModules(orgUnitId: number): Promise<unknown>;

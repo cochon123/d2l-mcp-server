@@ -16,8 +16,9 @@ course material.
 
 - **Automated SSO authentication** via Playwright (handles Microsoft/institutional login)
 - **Persistent session storage** - login once, use for hours
-- **12 tools** for accessing assignments, grades, calendar, announcements, course content
+- **13 tools** for accessing assignments, grades, calendar, announcements, course content, and submissions
 - **File downloads** with automatic text extraction (docx, txt, etc.)
+- **Guarded assignment uploads** with confirmation, duplicate protection, and verification
 - **LLM-optimized responses** - clean, token-efficient output
 
 ## Installation
@@ -49,7 +50,8 @@ Add to `~/Library/Application Support/Claude/claude_desktop_config.json` (macOS)
       "command": "d2l-mcp",
       "env": {
         "D2L_HOST": "learn.ul.ie",
-        "D2L_COURSE_ID": "68929"
+        "D2L_COURSE_ID": "68929",
+        "D2L_UPLOAD_ROOTS": "/path/to/your/projects"
       }
     }
   }
@@ -64,6 +66,7 @@ Add to `~/Library/Application Support/Claude/claude_desktop_config.json` (macOS)
 | `get_assignments` | List all assignments with due dates and instructions |
 | `get_assignment` | Get full details for a specific assignment |
 | `get_assignment_submissions` | Get your submissions, grades, and feedback |
+| `submit_assignment` | Submit one confirmed local file and verify the upload |
 
 ### Course Content
 | Tool | Description |
@@ -95,6 +98,7 @@ Once connected to Claude, you can ask things like:
 - "What announcements have been posted?"
 - "Download the weekly report template"
 - "What's the syllabus for this course?"
+- "Submit `/path/to/project.zip` to assignment 37812 in course 68929"
 
 ## Environment Variables
 
@@ -102,8 +106,23 @@ Once connected to Claude, you can ask things like:
 |----------|-------------|---------|
 | `D2L_HOST` | Your Brightspace hostname | `learn.ul.ie` |
 | `D2L_COURSE_ID` | Default course ID (optional) | none |
+| `D2L_UPLOAD_ROOTS` | Directories files may be uploaded from, separated by the platform path delimiter | server working directory |
+| `D2L_MAX_UPLOAD_BYTES` | Maximum allowed upload size in bytes | `104857600` (100 MiB) |
 
 Setting `D2L_COURSE_ID` allows you to omit the course ID from tool calls.
+
+### Submission safety
+
+`submit_assignment` changes external state. It requires `confirmed=true`, which clients
+must provide only after the user explicitly approves the exact course, assignment, and
+file. Existing submissions are blocked unless `allowResubmission=true` is also explicitly
+approved. The initial implementation supports individual file assignments; package a
+multi-file code project as a ZIP before submitting it.
+
+For safety, configure `D2L_UPLOAD_ROOTS` to the narrowest directories containing work
+you may submit. The tool resolves symbolic links, rejects files outside those roots,
+enforces the configured size limit and assignment extension allowlist, and queries D2L
+after uploading to verify the submitted filename and size.
 
 ## Session Management
 
