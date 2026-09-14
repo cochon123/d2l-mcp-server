@@ -1,6 +1,6 @@
 {
   "name": "d2l-mcp-server",
-  "version": "1.0.1",
+  "version": "1.1.0",
   "description": "MCP server for D2L Brightspace API with automated authentication",
   "type": "module",
   "main": "dist/index.js",
@@ -24,7 +24,7 @@
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "https://github.com/general-mudkip/d2l-mcp-server"
+    "url": "https://github.com/cochon123/d2l-mcp-server"
   },
   "scripts": {
     "build": "tsc",
